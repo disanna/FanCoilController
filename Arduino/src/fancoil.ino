@@ -6,12 +6,16 @@
 #define GET_MODE 1
 #define SET_TEMP 2
 #define SET_MODE 3
+#define INC_TEMP 4
+#define DEC_TEMP 5
 
 #define POWER_OFF 0
 #define MODE_AUTO 1
 #define MODE_MIN 2
 #define MODE_MAX 3
 #define MODE_NIGHT 4
+
+
 
 uint8_t cmd;
 uint16_t receivedParam;
@@ -46,10 +50,10 @@ void loop()
   if (Serial.available() > 0) {
   // read the incoming byte:
     incomingByte = Serial.read();
-    if(incomingByte=='s') {
+    if(incomingByte==INC_TEMP) {
       setTemp(fancoilTemp+5);
     }
-    if(incomingByte=='g') {
+    if(incomingByte==DEC_TEMP) {
       setTemp(fancoilTemp-5);
     }
   }
