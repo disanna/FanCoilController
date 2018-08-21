@@ -190,134 +190,134 @@ void decodeData()
   case 0:
   {
     if (flagTempMax)
-      fancoilTemp = 300 - 100;  // valore inuscita di 30° per indicare temperatura MAX
+      fancoilTemp = 300;  // valore inuscita di 30° per indicare temperatura MAX
     else
       fancoilTemp = 0;   // valore inuscita di 0° per indicare temperatura MIN
     break;
   }
   case 1:
   {
-    fancoilTemp = 210 - 100;
+    fancoilTemp = 210;
     break;
   }
   case 2:
   {
-    fancoilTemp = 200 - 100;
+    fancoilTemp = 200;
     break;
   }
   case 3:
   {
-    fancoilTemp = 205 - 100;
+    fancoilTemp = 205;
     break;
   }
   case 4:
   {
-    fancoilTemp = 190 - 100;
+    fancoilTemp = 190;
     break;
   }
   case 6:
   {
-    fancoilTemp = 195 - 100;
+    fancoilTemp = 195;
     break;
   }
   case 8:
   {
-    fancoilTemp = 180 - 100;
+    fancoilTemp = 180;
     break;
   }
   case 12:
   {
-    fancoilTemp = 185 - 100;
+    fancoilTemp = 185;
     break;
   }
   case 16:
   {
-    fancoilTemp = 170 - 100;
+    fancoilTemp = 170;
     break;
   }
   case 24:
   {
-    fancoilTemp = 175 - 100;
+    fancoilTemp = 175;
     break;
   }
   case 32:
   {
-    fancoilTemp = 160 - 100;
+    fancoilTemp = 160;
     break;
   }
   case 48:
   {
-    fancoilTemp = 165 - 100;
+    fancoilTemp = 165;
     break;
   }
   case 64:
   {
-    fancoilTemp = 220 - 100;
+    fancoilTemp = 220;
     break;
   }
   case 65:
   {
-    fancoilTemp = 215 - 100;
+    fancoilTemp = 215;
     break;
   }
   case 256:
   {
-    fancoilTemp = 280 - 100;
+    fancoilTemp = 280;
     break;
   }
   case 512:
   {
-    fancoilTemp = 270 - 100;
+    fancoilTemp = 270;
     break;
   }
   case 768:
   {
-    fancoilTemp = 275 - 100;
+    fancoilTemp = 275;
     break;
   }
   case 1024:
   {
-    fancoilTemp = 260 - 100;
+    fancoilTemp = 260;
     break;
   }
   case 1536:
   {
-    fancoilTemp = 265 - 100;
+    fancoilTemp = 265;
     break;
   }
   case 2048:
   {
-    fancoilTemp = 250 - 100;
+    fancoilTemp = 250;
     break;
   }
   case 3072:
   {
-    fancoilTemp = 255 - 100;
+    fancoilTemp = 255;
     break;
   }
   case 4096:
   {
-    fancoilTemp = 240 - 100;
+    fancoilTemp = 240;
     break;
   }
   case 6144:
   {
-    fancoilTemp = 245 - 100;
+    fancoilTemp = 245;
     break;
   }
   case 8192:
   {
-    fancoilTemp = 230 - 100;
+    fancoilTemp = 230;
     break;
   }
   case 8256:
   {
-    fancoilTemp = 225 - 100;
+    fancoilTemp = 225;
     break;
   }
   case 12288:
   {
-    fancoilTemp = 235 - 100;
+    fancoilTemp = 235;
     break;
   }
   }
