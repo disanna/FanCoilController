@@ -10,7 +10,6 @@
 
 #include <esp8266_peri.h>
 #include <ets_sys.h>
-#include <wire.h>
 
 #define PLUGIN_202
 #define PLUGIN_ID_202 202

@@ -10,7 +10,6 @@
 
 #include <esp8266_peri.h>
 #include <ets_sys.h>
-#include <wire.h>
 
 #define PLUGIN_201
 #define PLUGIN_ID_201 201
@@ -110,11 +109,11 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
     {
       String command = parseString(string, 1);
 
-      if (command == F("FANCOIL_SET_TEMP"))
+      if (command.equalsIgnoreCase(F("FancoilSetTemp")))
       {
         int param = (parseString(string, 2)).toInt();
         
-        String log = F("ricevuto comando FANCOIL_SET_TEMP");
+        String log = F("ricevuto comando FancoilSetTemp");
 
         delay(1);
         Wire.beginTransmission(WIRE_ADDRESS);
@@ -123,16 +122,17 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         Wire.endTransmission();
 
         delay(1);
-        Wire.requestFrom(WIRE_ADDRESS,0);
+        Wire.requestFrom(WIRE_ADDRESS,2);
+        I2CReadTwoBytes();
 
         success = true;
       }
 
-      else if(command == F("FANCOIL_SET_MODE")) 
+      else if(command.equalsIgnoreCase(F("FancoilSetMode"))) 
       {
         int param = (parseString(string, 2)).toInt();
         
-        String log = F("ricevuto comando FANCOIL_SET_MODE");
+        String log = F("ricevuto comando FancoilSetMode");
 
         delay(1);
         Wire.beginTransmission(WIRE_ADDRESS);
@@ -141,14 +141,15 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         Wire.endTransmission();
 
         delay(1);
-        Wire.requestFrom(WIRE_ADDRESS,0);
+        Wire.requestFrom(WIRE_ADDRESS,1);
+        Wire.read();
 
         success = true;
       }
 
-      else if(command == F("FANCOIL_INC_TEMP")) 
+      else if(command.equalsIgnoreCase(F("FancoilIncTemp"))) 
       {
-        String log = F("ricevuto comando FANCOIL_INC_TEMP");
+        String log = F("ricevuto comando FancoilIncTemp");
 
         delay(1);
         Wire.beginTransmission(WIRE_ADDRESS);
@@ -156,14 +157,15 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         Wire.endTransmission();
 
         delay(1);
-        Wire.requestFrom(WIRE_ADDRESS,0);
+        Wire.requestFrom(WIRE_ADDRESS,2);
+        I2CReadTwoBytes();
 
         success = true;
       }  
       
-      else if(command == F("FANCOIL_DEC_TEMP")) 
+      else if(command.equalsIgnoreCase(F("FancoilDecTemp"))) 
       {
-        String log = F("ricevuto comando FANCOIL_DEC_TEMP");
+        String log = F("ricevuto comando FancoilDecTemp");
 
         delay(1);
         Wire.beginTransmission(WIRE_ADDRESS);
@@ -171,7 +173,8 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         Wire.endTransmission();
 
         delay(1);
-        Wire.requestFrom(WIRE_ADDRESS,0);
+        Wire.requestFrom(WIRE_ADDRESS,2);
+        I2CReadTwoBytes();
 
         success = true;
       } 

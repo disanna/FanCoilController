@@ -46,8 +46,13 @@ void longWDT(void)
 
 void setup()
 {
-  Timer1.initialize(2000000); //2 second pulses
-  Timer1.stop();
+  digitalWrite(6,HIGH); //imposta la resistenza di pullup sul pin collegato al fancoil
+  pinMode(6, OUTPUT); //imposta come uscita il pin collegato al fancoil
+  digitalWrite(6,HIGH); //imposta a valore alto il pin collegato al fancoil
+  pinMode(7, OUTPUT); //imposta come uscita il pin che abilita la lettura da SPI
+
+  Timer1.initialize(2000000); // imposta timer watchdog a 2 secondi
+  Timer1.stop(); // blocca il timer watchdog
 
   receiveCmd = 255;
   receivedParam = 255;
@@ -61,10 +66,9 @@ void setup()
   // enable interrupts
   //SPCR |= _BV(SPIE);
 
-  pinMode(7, OUTPUT);
-  pinMode(6, OUTPUT);
+
   Serial.begin(115200);
-  digitalWrite(6,HIGH);
+  
 
 
   Wire.begin(WIRE_ADDRESS);     // join i2c bus with address #8
@@ -101,11 +105,13 @@ void requestEvent()
   switch(receiveCmd) {
     case INC_TEMP: {
       setTemp(fancoilTemp + 5);
+      I2CWriteTwoBytes(fancoilTemp);
       break;
     }
 
     case DEC_TEMP: {
       setTemp(fancoilTemp-5);
+      I2CWriteTwoBytes(fancoilTemp);
       break;
     }
 
@@ -116,6 +122,7 @@ void requestEvent()
 
     case SET_TEMP: {
       uint16_t result = setTemp(receivedParam);
+      I2CWriteTwoBytes(fancoilTemp);
       break;
     }
 
@@ -126,6 +133,7 @@ void requestEvent()
 
     case SET_MODE: {
       uint8_t result = setMode(receivedParam);
+      Wire.write(fancoilMode);
       break;
     }
   }
@@ -351,7 +359,7 @@ uint16_t setTemp(uint16_t temp)
   if(fancoilTemp == temp) {
     return temp; 
   } else {
-    return 255;  // errore
+    return 511;  // errore
   }
 }
 
