@@ -1,0 +1,43 @@
+{
+    "description": "Simple web server library", 
+    "repository": {
+        "url": "https://github.com/Pedroalbuquerque/ESP32WebServer", 
+        "type": "git"
+    }, 
+    "platforms": [], 
+    "export": {
+        "exclude": [
+            "extras", 
+            "docs", 
+            "tests", 
+            "test", 
+            "*.doxyfile", 
+            "*.pdf"
+        ], 
+        "include": null
+    }, 
+    "authors": [
+        {
+            "maintainer": false, 
+            "name": "Ivan Grokhotkov", 
+            "url": null, 
+            "email": null
+        }, 
+        {
+            "maintainer": true, 
+            "name": "Ivan Grokhtkov", 
+            "url": null, 
+            "email": "ivan@ESP32.com"
+        }
+    ], 
+    "keywords": [
+        "communication"
+    ], 
+    "id": 2007, 
+    "name": "ESP32WebServer", 
+    "frameworks": [
+        "arduino"
+    ], 
+    "version": "1.0", 
+    "homepage": null
+}
