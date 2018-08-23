@@ -392,15 +392,15 @@ uint8_t setMode(uint16_t mode) {
   if((fancoilMode != mode) && (mode >= MIN_MODE) && (mode <= MAX_MODE)) {
 
     if(mode == POWER_OFF) {
-      uint8_t i = 50; 
+      uint16_t i = 500; 
       while ((fancoilMode != mode) && (i > 0)) {
         digitalWrite(7, LOW);
         while (!(SPSR & (1 << SPIF))) {}
         while (!(readPrefix() & 0b01000000)) {}
         digitalWrite(6, LOW);
-        delayMicroseconds(5500);  //preme per 5 sec  
+        delayMicroseconds(5500);  
         digitalWrite(6, HIGH);
-        readFancoilData();
+        //readFancoilData();
         i--;  
       }
 
@@ -437,7 +437,7 @@ uint8_t setMode(uint16_t mode) {
           while (!(SPSR & (1 << SPIF))) {}
           while (!(readPrefix() & 0b01000000)) {}
           digitalWrite(6, LOW);
-          delayMicroseconds(8000000);  //preme per 5 sec  
+          delayMicroseconds(5500);  //preme per 5 sec  
           digitalWrite(6, HIGH);
           readFancoilData();  
         }
