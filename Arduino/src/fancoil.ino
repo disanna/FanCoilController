@@ -16,8 +16,15 @@
 #define MODE_MAX 3
 #define MODE_NIGHT 4
 
+#define MIN_MODE 0
+#define MAX_MODE 4
+
 #define MAX_TEMP 280
 #define MIN_TEMP 160
+
+#define PARAM_ERROR 511
+#define TEMP_ERROR 511
+#define MODE_ERROR 255
 
 void (*resetFunc)(void) = 0; //indirizzo di memoria bootloader
 
@@ -25,7 +32,7 @@ uint8_t spiData[7];
 uint16_t fancoilData[4];
 uint8_t receiveCmd;
 uint16_t receivedParam;
-uint8_t fancoilTemp;
+uint16_t fancoilTemp;
 uint8_t fancoilMode;
 
 void longWDT(void)
@@ -54,11 +61,6 @@ void setup()
   Timer1.initialize(2000000); // imposta timer watchdog a 2 secondi
   Timer1.stop(); // blocca il timer watchdog
 
-  receiveCmd = 255;
-  receivedParam = 255;
-  fancoilTemp = 255;
-  fancoilMode = 255;
-
   pinMode(MISO, OUTPUT);
   // bring in SPI slave mode
   SPCR |= _BV(SPE);
@@ -66,11 +68,8 @@ void setup()
   // enable interrupts
   //SPCR |= _BV(SPIE);
 
-
   Serial.begin(115200);
   
-
-
   Wire.begin(WIRE_ADDRESS);     // join i2c bus with address #8
   Wire.onRequest(requestEvent); // register event
   Wire.onReceive(receiveEvent); // receive event
@@ -104,36 +103,46 @@ void requestEvent()
 {
   switch(receiveCmd) {
     case INC_TEMP: {
+      readFancoilData();
       setTemp(fancoilTemp + 5);
       I2CWriteTwoBytes(fancoilTemp);
       break;
     }
 
     case DEC_TEMP: {
+      readFancoilData();
       setTemp(fancoilTemp-5);
       I2CWriteTwoBytes(fancoilTemp);
       break;
     }
 
     case GET_TEMP: {
+      readFancoilData();
       I2CWriteTwoBytes(fancoilTemp);
       break;
     }
 
     case SET_TEMP: {
-      uint16_t result = setTemp(receivedParam);
-      I2CWriteTwoBytes(fancoilTemp);
+      if(receivedParam != PARAM_ERROR) {
+        readFancoilData();
+        uint16_t result = setTemp(receivedParam);
+        I2CWriteTwoBytes(fancoilTemp);
+      }
       break;
     }
 
     case GET_MODE: {
+      readFancoilData();
       Wire.write(fancoilMode);
       break;
     }
 
     case SET_MODE: {
-      uint8_t result = setMode(receivedParam);
-      Wire.write(fancoilMode);
+      if(receivedParam != PARAM_ERROR) {
+        readFancoilData();
+        uint8_t result = setMode(receivedParam);
+        Wire.write(fancoilMode);
+      }
       break;
     }
   }
@@ -145,7 +154,7 @@ void receiveEvent(int numBytes)
   if(Wire.available()) {
     receivedParam = I2CReadTwoBytes();
   } else {
-    receivedParam = 255; //errore
+    receivedParam = PARAM_ERROR; //errore
   }
 }
 
@@ -191,6 +200,7 @@ void decodeData()
     }
     }
   }
+
   valTot = val1 + val2 * 256;
 
   switch (valTot)
@@ -198,9 +208,9 @@ void decodeData()
   case 0:
   {
     if (flagTempMax)
-      fancoilTemp = 300;  // valore inuscita di 30° per indicare temperatura MAX
+      fancoilTemp = MAX_TEMP + 5;  // valore inuscita di 30° per indicare temperatura MAX
     else
-      fancoilTemp = 0;   // valore inuscita di 0° per indicare temperatura MIN
+      fancoilTemp = MIN_TEMP -5;   // valore inuscita di 0° per indicare temperatura MIN
     break;
   }
   case 1:
@@ -331,8 +341,12 @@ void decodeData()
   }
 }
 
-uint16_t setTemp(uint16_t temp)
+uint16_t setTemp(uint16_t t)
 {
+  //mi assicuro che il valore di temp sia un multiplo di 5;
+  uint8_t x = t / 5;
+  uint16_t temp = x * 5;
+   
   if((fancoilTemp != temp) && (temp < MAX_TEMP) && (temp > MIN_TEMP)) {
     uint8_t i = 0;
     while ((fancoilTemp < temp) && (i < 50)) {
@@ -364,7 +378,59 @@ uint16_t setTemp(uint16_t temp)
 }
 
 uint8_t setMode(uint16_t mode) {
-  // to do
+   
+  if((fancoilMode != mode) && (mode < MIN_MODE) && (mode > MAX_MODE)) {
+
+    if(mode == POWER_OFF) {
+      uint8_t i = 10; 
+      while ((fancoilMode != mode) && (i > 0)) {
+        digitalWrite(7, LOW);
+        while (!(SPSR & (1 << SPIF))) {}
+        while (!(readPrefix() & 0b00000010)) {}
+        digitalWrite(6, LOW);
+        delayMicroseconds(1000000);    
+        digitalWrite(6, HIGH);
+        readFancoilData();
+        i--;  
+      }
+
+    } else {  
+
+      //accende il fancoil se spento
+      if(fancoilMode == POWER_OFF) {   
+        uint8_t i = 10; 
+        while ((fancoilMode == POWER_OFF) && (i > 0)) {
+          digitalWrite(7, LOW);
+          while (!(SPSR & (1 << SPIF))) {}
+          while (!(readPrefix() & 0b00000010)) {}
+          digitalWrite(6, LOW);
+          delayMicroseconds(1000000);    
+          digitalWrite(6, HIGH);
+          readFancoilData();
+          i--;  
+        }
+      }
+      
+      //imposta modalità
+      uint8_t i = 10; 
+      while ((fancoilMode != mode) && (i > 0)) {
+        digitalWrite(7, LOW);
+        while (!(SPSR & (1 << SPIF))) {}
+        while (!(readPrefix() & 0b00000010)) {}
+        digitalWrite(6, LOW);
+        delayMicroseconds(5500);    
+        digitalWrite(6, HIGH);
+        readFancoilData();
+        i--;
+      }
+    }
+  } 
+    
+  if(fancoilMode == mode) {
+    return mode; 
+  } else {
+    return MODE_ERROR;  // errore
+  }
 }
 
 void readSPI()
