@@ -31,6 +31,7 @@
 #define SET_MODE 3
 #define INC_TEMP 4
 #define DEC_TEMP 5
+#define RESET 6
 
 boolean Plugin_201(byte function, struct EventStruct *event, String &string)
 {
@@ -111,7 +112,7 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
 
       if (command.equalsIgnoreCase(F("FancoilSetTemp")))
       {
-        int param = (parseString(string, 2)).toInt();
+        uint16_t param = (parseString(string, 2)).toInt();
         
         String log = F("ricevuto comando FancoilSetTemp");
 
@@ -122,22 +123,22 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         Wire.endTransmission();
 
         delay(1);
-        Wire.requestFrom(WIRE_ADDRESS,2);
-        I2CReadTwoBytes();
+        Wire.requestFrom(WIRE_ADDRESS,1);
+        Wire.read();
 
         success = true;
       }
 
       else if(command.equalsIgnoreCase(F("FancoilSetMode"))) 
       {
-        int param = (parseString(string, 2)).toInt();
+        uint16_t param = (parseString(string, 2)).toInt();
         
         String log = F("ricevuto comando FancoilSetMode");
 
         delay(1);
         Wire.beginTransmission(WIRE_ADDRESS);
         Wire.write(SET_MODE);
-        Wire.write(param);
+        I2CWriteTwoBytes(param);
         Wire.endTransmission();
 
         delay(1);
@@ -147,37 +148,20 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         success = true;
       }
 
-      else if(command.equalsIgnoreCase(F("FancoilIncTemp"))) 
+      else if(command.equalsIgnoreCase(F("FancoilReset"))) 
       {
-        String log = F("ricevuto comando FancoilIncTemp");
+        String log = F("ricevuto comando FancoilReset");
 
         delay(1);
         Wire.beginTransmission(WIRE_ADDRESS);
-        Wire.write(INC_TEMP);
+        Wire.write(RESET);
         Wire.endTransmission();
 
         delay(1);
-        Wire.requestFrom(WIRE_ADDRESS,2);
-        I2CReadTwoBytes();
+        Wire.requestFrom(WIRE_ADDRESS,1);
 
         success = true;
-      }  
-      
-      else if(command.equalsIgnoreCase(F("FancoilDecTemp"))) 
-      {
-        String log = F("ricevuto comando FancoilDecTemp");
-
-        delay(1);
-        Wire.beginTransmission(WIRE_ADDRESS);
-        Wire.write(DEC_TEMP);
-        Wire.endTransmission();
-
-        delay(1);
-        Wire.requestFrom(WIRE_ADDRESS,2);
-        I2CReadTwoBytes();
-
-        success = true;
-      } 
+      }
 
       else {
         success = false;
@@ -191,7 +175,6 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
 }
 
 uint16_t getFancoilTemp() {
-  uint16_t fancoilTemp = 255;
 
   delay(1);
   Wire.beginTransmission(WIRE_ADDRESS);
@@ -202,13 +185,12 @@ uint16_t getFancoilTemp() {
   Wire.requestFrom(WIRE_ADDRESS, 2); 
   
   delay(1);
-  fancoilTemp = I2CReadTwoBytes();
+  uint16_t fancoilTemp = I2CReadTwoBytes();
 
   return fancoilTemp;
 }
 
 uint8_t getFancoilMode() {
-  uint8_t fancoilMode = 255;
 
   delay(1);
   Wire.beginTransmission(WIRE_ADDRESS);
@@ -219,7 +201,7 @@ uint8_t getFancoilMode() {
   Wire.requestFrom(WIRE_ADDRESS, 1); 
   
   delay(1);
-  fancoilMode = Wire.read();
+  uint8_t fancoilMode = Wire.read();
 
   return fancoilMode;
 }

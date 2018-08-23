@@ -9,6 +9,7 @@
 #define SET_MODE 3
 #define INC_TEMP 4
 #define DEC_TEMP 5
+#define RESET 6
 
 #define POWER_OFF 0
 #define MODE_AUTO 1
@@ -34,6 +35,10 @@ uint8_t receiveCmd;
 uint16_t receivedParam;
 uint16_t fancoilTemp;
 uint8_t fancoilMode;
+uint8_t I2CReqFlag;
+uint8_t setTempFlag;
+uint8_t setModeFlag;
+uint8_t resetFlag;
 
 void longWDT(void)
 {
@@ -53,12 +58,16 @@ void longWDT(void)
 
 void setup()
 {
+  resetFlag = 0;
+  setTempFlag = 0;
+  setModeFlag = 0;
+
   digitalWrite(6,HIGH); //imposta la resistenza di pullup sul pin collegato al fancoil
   pinMode(6, OUTPUT); //imposta come uscita il pin collegato al fancoil
   digitalWrite(6,HIGH); //imposta a valore alto il pin collegato al fancoil
   pinMode(7, OUTPUT); //imposta come uscita il pin che abilita la lettura da SPI
 
-  Timer1.initialize(2000000); // imposta timer watchdog a 2 secondi
+  Timer1.initialize(10000000); // imposta timer watchdog a 2 secondi
   Timer1.stop(); // blocca il timer watchdog
 
   pinMode(MISO, OUTPUT);
@@ -69,7 +78,7 @@ void setup()
   //SPCR |= _BV(SPIE);
 
   Serial.begin(115200);
-  
+  Serial.println("Setup");
   Wire.begin(WIRE_ADDRESS);     // join i2c bus with address #8
   Wire.onRequest(requestEvent); // register event
   Wire.onReceive(receiveEvent); // receive event
@@ -77,23 +86,38 @@ void setup()
 
 void loop()
 { 
-  Serial.print("Received cmd:");
-  Serial.println(receiveCmd);
-  Serial.print("Received param:");
-  Serial.println(receivedParam);
+  Serial.println("");
   Serial.print("Fancoil temp:");
   Serial.println(fancoilTemp);
   Serial.print("Fancoil mode:");
   Serial.println(fancoilMode);
+  Serial.println("");
+  
   
   Timer1.resume();
-  //Timer1.start();
   Timer1.attachInterrupt(longWDT); //code to execute
+
   readFancoilData();
+
+  if(setTempFlag) {
+    setTemp(receivedParam);
+    setTempFlag = 0;
+  }
+
+  if(setModeFlag) {
+    setMode(receivedParam);
+    setModeFlag = 0;
+  }
+
+  if(resetFlag) {
+    resetFunc();
+    resetFlag = 0;
+  }
+
   Timer1.detachInterrupt();
   Timer1.stop();
 
-  delay(100);
+  delay(1000);
 }
 
 
@@ -102,59 +126,45 @@ void loop()
 void requestEvent()
 {
   switch(receiveCmd) {
-    case INC_TEMP: {
-      readFancoilData();
-      setTemp(fancoilTemp + 5);
-      I2CWriteTwoBytes(fancoilTemp);
-      break;
-    }
-
-    case DEC_TEMP: {
-      readFancoilData();
-      setTemp(fancoilTemp-5);
-      I2CWriteTwoBytes(fancoilTemp);
-      break;
-    }
 
     case GET_TEMP: {
-      readFancoilData();
       I2CWriteTwoBytes(fancoilTemp);
-      break;
-    }
-
-    case SET_TEMP: {
-      if(receivedParam != PARAM_ERROR) {
-        readFancoilData();
-        uint16_t result = setTemp(receivedParam);
-        I2CWriteTwoBytes(fancoilTemp);
-      }
       break;
     }
 
     case GET_MODE: {
-      readFancoilData();
       Wire.write(fancoilMode);
+      break;
+    }
+      
+    case SET_TEMP: {
+      setTempFlag = 1;
+      Wire.write(1);
       break;
     }
 
     case SET_MODE: {
-      if(receivedParam != PARAM_ERROR) {
-        readFancoilData();
-        uint8_t result = setMode(receivedParam);
-        Wire.write(fancoilMode);
-      }
+      setModeFlag = 1;
+      Wire.write(1);   
       break;
     }
+
+    case RESET: {
+      resetFlag = 1;
+      Wire.write(1);
+      break;
+    }
+
   }
 }
 
 void receiveEvent(int numBytes)
 {
-  receiveCmd = Wire.read();
+  if(Wire.available()) {
+    receiveCmd = Wire.read();
+  }
   if(Wire.available()) {
     receivedParam = I2CReadTwoBytes();
-  } else {
-    receivedParam = PARAM_ERROR; //errore
   }
 }
 
@@ -349,7 +359,7 @@ uint16_t setTemp(uint16_t t)
    
   if((fancoilTemp != temp) && (temp < MAX_TEMP) && (temp > MIN_TEMP)) {
     uint8_t i = 0;
-    while ((fancoilTemp < temp) && (i < 50)) {
+    while ((fancoilTemp < temp) && (i < 100)) {
       digitalWrite(7, LOW);
       while (!(SPSR & (1 << SPIF))) {}
       while (!(readPrefix() & 0b00001000)) {}
@@ -359,7 +369,7 @@ uint16_t setTemp(uint16_t t)
       readFancoilData();
       i++;
     }
-    while ((fancoilTemp > temp) && (i < 50)) {
+    while ((fancoilTemp > temp) && (i < 100)) {
       digitalWrite(7, LOW);
       while (!(SPSR & (1 << SPIF))) {}
       while (!(readPrefix() & 0b00010000)) {}
@@ -378,49 +388,59 @@ uint16_t setTemp(uint16_t t)
 }
 
 uint8_t setMode(uint16_t mode) {
-   
-  if((fancoilMode != mode) && (mode < MIN_MODE) && (mode > MAX_MODE)) {
+
+  if((fancoilMode != mode) && (mode >= MIN_MODE) && (mode <= MAX_MODE)) {
 
     if(mode == POWER_OFF) {
-      uint8_t i = 10; 
+      uint8_t i = 50; 
       while ((fancoilMode != mode) && (i > 0)) {
         digitalWrite(7, LOW);
         while (!(SPSR & (1 << SPIF))) {}
-        while (!(readPrefix() & 0b00000010)) {}
+        while (!(readPrefix() & 0b01000000)) {}
         digitalWrite(6, LOW);
-        delayMicroseconds(1000000);    
+        delayMicroseconds(5500);  //preme per 5 sec  
         digitalWrite(6, HIGH);
         readFancoilData();
         i--;  
       }
 
     } else {  
-
+      Serial.println("2");
       //accende il fancoil se spento
       if(fancoilMode == POWER_OFF) {   
-        uint8_t i = 10; 
+        uint8_t i = 50; 
         while ((fancoilMode == POWER_OFF) && (i > 0)) {
           digitalWrite(7, LOW);
           while (!(SPSR & (1 << SPIF))) {}
-          while (!(readPrefix() & 0b00000010)) {}
+          while (!(readPrefix() & 0b01000000)) {}
           digitalWrite(6, LOW);
-          delayMicroseconds(1000000);    
+          delayMicroseconds(5000000);  //preme per 5 sec
           digitalWrite(6, HIGH);
           readFancoilData();
           i--;  
         }
       }
       
+      Serial.println("3");
       //imposta modalità
-      uint8_t i = 10; 
+      uint8_t i = 50; 
       while ((fancoilMode != mode) && (i > 0)) {
         digitalWrite(7, LOW);
         while (!(SPSR & (1 << SPIF))) {}
-        while (!(readPrefix() & 0b00000010)) {}
+        while (!(readPrefix() & 0b01000000)) {}
         digitalWrite(6, LOW);
         delayMicroseconds(5500);    
         digitalWrite(6, HIGH);
         readFancoilData();
+        if(fancoilMode != mode) {
+          digitalWrite(7, LOW);
+          while (!(SPSR & (1 << SPIF))) {}
+          while (!(readPrefix() & 0b01000000)) {}
+          digitalWrite(6, LOW);
+          delayMicroseconds(8000000);  //preme per 5 sec  
+          digitalWrite(6, HIGH);
+          readFancoilData();  
+        }
         i--;
       }
     }
