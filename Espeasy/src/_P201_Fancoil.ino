@@ -33,6 +33,8 @@
 #define DEC_TEMP 5
 #define RESET 6
 
+#define TASK_NAME "Arduino"   
+
 boolean Plugin_201(byte function, struct EventStruct *event, String &string)
 {
   boolean success = false;
@@ -76,45 +78,110 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
       break;
     }
 
+
+    case PLUGIN_WEBFORM_LOAD:
+    {
+      //this case defines what should be displayed on the web form, when this plugin is selected
+      //The user's selection will be stored in
+      //Settings.TaskDevicePluginConfig[event->TaskIndex][x] (custom configuration)
+
+      // Make sure not to append data to the string variable in this PLUGIN_WEBFORM_LOAD call.
+      // This has changed, so now use the appropriate functions to write directly to the Streaming
+      // WebServer. This takes much less memory and is faster.
+      // There will be an error in the web interface if something is added to the "string" variable.
+
+      //Use any of the following (defined at WebServer.ino):
+      //addFormNote(F("not editable text added here"));
+      //To add some html, which cannot be done in the existing functions, add it in the following way:
+      addHtml(F("<TR><TD>Timout scrittura su Arduino (ms) (max 25s):<TD>"));
+
+
+      //For strings, always use the F() macro, which stores the string in flash, not in memory.
+
+      //String dropdown[5] = { F("option1"), F("option2"), F("option3"), F("option4")};
+      //addFormSelector(string, F("drop-down menu"), F("plugin_xxx_displtype"), 4, dropdown, NULL, Settings.TaskDevicePluginConfig[event->TaskIndex][0]);
+
+      //number selection (min-value - max-value)
+      addFormNumericBox(F("timeout"), F("plugin_P201_timeout"), Settings.TaskDevicePluginConfig[event->TaskIndex][0], 1000, 256*255);
+
+      //after the form has been loaded, set success and break
+      success = true;
+      break;
+    }
+
+    case PLUGIN_WEBFORM_SAVE:
+    {
+      //this case defines the code to be executed when the form is submitted
+      //the plugin settings should be saved to Settings.TaskDevicePluginConfig[event->TaskIndex][x]
+      //ping configuration should be read from Settings.TaskDevicePin1[event->TaskIndex] and stored
+
+      //after the form has been saved successfuly, set success and break
+      Settings.TaskDevicePluginConfig[event->TaskIndex][0] = getFormItemInt(F("plugin_P201_timeout"));
+      
+      success = true;
+      break;
+
+    }
+
     case PLUGIN_READ:
     {
-      String log = F("Fancoil - Read");
+
+      //while(Settings.TaskDevicePluginConfig[event->TaskIndex][0]) {}  //attende che la linea I2C sia disponibile
+      //Settings.TaskDevicePluginConfig[event->TaskIndex][0] = true;   //imposta la variabile che indica che la linea I2C è impegnata
+      
+      String log = F("Inizio Fancoil - READ");
       addLog(LOG_LEVEL_DEBUG, log);
 
       uint16_t fancoilTemp = getFancoilTemp();
+      
       if(fancoilTemp != 255) {
         UserVar[event->BaseVarIndex] = fancoilTemp; //legge valore set point impostato sul fancoil
         success = true;
       } else {
         success = false;
       }
+      
       log = F("Temperatura= ");
       log += fancoilTemp;
       addLog(LOG_LEVEL_DEBUG, log);
 
       uint8_t fancoilMode = getFancoilMode();
+      
       if(fancoilMode != 255) {  
         UserVar[event->BaseVarIndex+1] = fancoilMode; //legge valore set point impostato sul fancoil
         success = true;
       } else {
         success = false;
       }
+      
       log = F("Modalità= ");
       log += fancoilMode;
+      addLog(LOG_LEVEL_DEBUG, log);
+    
+      //Settings.TaskDevicePluginConfig[event->TaskIndex][0] = false;   //imposta la variabile che indica che la linea I2C è disponibile
+    
+      log = F("Fine Fancoil READ");
       addLog(LOG_LEVEL_DEBUG, log);
 
       break;
     }
 
-    case PLUGIN_WRITE:
-    {
+    case PLUGIN_WRITE: {
+      uint8_t taskIndex = getTaskIndexByName(TASK_NAME);
+      uint16_t timeout = Settings.TaskDevicePluginConfig[taskIndex][0];  //legge la variabile relativa al timeout impostato prima di chiudere la funzione WRITE
+      //while(Settings.TaskDevicePluginConfig[taskIndex][0]) {}  //attende che la linea I2C sia disponibile
+      //Settings.TaskDevicePluginConfig[taskIndex][0] = true;   //imposta la variabile che indica che la linea I2C è impegnata
+      
+      String log = F("Inizio Fancoil - WRITE");
+      addLog(LOG_LEVEL_DEBUG, log);
+
       String command = parseString(string, 1);
 
-      if (command.equalsIgnoreCase(F("FancoilSetTemp")))
-      {
+      if (command.equalsIgnoreCase(F("FancoilSetTemp"))) {
         uint16_t param = (parseString(string, 2)).toInt();
         
-        String log = F("ricevuto comando FancoilSetTemp");
+        log = F("ricevuto comando FancoilSetTemp");
+        addLog(LOG_LEVEL_DEBUG, log);
 
         delay(1);
         Wire.beginTransmission(WIRE_ADDRESS);
@@ -127,10 +194,9 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         Wire.read();
 
         success = true;
-      }
-
-      else if(command.equalsIgnoreCase(F("FancoilSetMode"))) 
-      {
+      } 
+      
+      else if(command.equalsIgnoreCase(F("FancoilSetMode"))) {
         uint16_t param = (parseString(string, 2)).toInt();
         
         String log = F("ricevuto comando FancoilSetMode");
@@ -146,10 +212,10 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         Wire.read();
 
         success = true;
+      
       }
 
-      else if(command.equalsIgnoreCase(F("FancoilReset"))) 
-      {
+      else if(command.equalsIgnoreCase(F("FancoilReset"))) {
         String log = F("ricevuto comando FancoilReset");
 
         delay(1);
@@ -167,8 +233,13 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         success = false;
       } 
 
-      break;
+      //Settings.TaskDevicePluginConfig[taskIndex][0] = false;   //imposta la variabile che indica che la linea I2C è disponibile
       
+      log = F("Fine Fancoil - WRITE");
+      addLog(LOG_LEVEL_DEBUG, log);
+      
+      delay(timeout);  //attende il completamento delle operazioni sull'arduino- 7 sec 
+      break;
     }
   }
   return success;
