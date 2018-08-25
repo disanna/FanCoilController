@@ -400,6 +400,7 @@ void setMode(uint16_t mode) {
   if((fancoilMode != mode) && (mode >= MIN_MODE) && (mode <= MAX_MODE)) {
 
     if(mode == POWER_OFF) {
+<<<<<<< HEAD
       uint16_t counter = 10; 
       while ((fancoilMode != mode) && (counter > 0)) {
         for(uint16_t i = 0; i < 50; i++) {
@@ -412,6 +413,18 @@ void setMode(uint16_t mode) {
         }
         readFancoilData();
         counter--;  
+=======
+      uint16_t i = 500; 
+      while ((fancoilMode != mode) && (i > 0)) {
+        digitalWrite(7, LOW);
+        while (!(SPSR & (1 << SPIF))) {}
+        while (!(readPrefix() & 0b01000000)) {}
+        digitalWrite(6, LOW);
+        delayMicroseconds(5500);  
+        digitalWrite(6, HIGH);
+        //readFancoilData();
+        i--;  
+>>>>>>> becacabd3ad52a7264a1ccff13bc425fbe42ca37
       }
 
     } else {  
@@ -441,6 +454,7 @@ void setMode(uint16_t mode) {
         digitalWrite(6, LOW);
         delayMicroseconds(5500);    
         digitalWrite(6, HIGH);
+<<<<<<< HEAD
 	      readFancoilData();
         uint8_t i = 5;
 	      while((i>0) && (fancoilMode != mode)) {
@@ -449,6 +463,19 @@ void setMode(uint16_t mode) {
 	      }  
 
         counter--;
+=======
+        readFancoilData();
+        if(fancoilMode != mode) {
+          digitalWrite(7, LOW);
+          while (!(SPSR & (1 << SPIF))) {}
+          while (!(readPrefix() & 0b01000000)) {}
+          digitalWrite(6, LOW);
+          delayMicroseconds(5500);  //preme per 5 sec  
+          digitalWrite(6, HIGH);
+          readFancoilData();  
+        }
+        i--;
+>>>>>>> becacabd3ad52a7264a1ccff13bc425fbe42ca37
       }
     }
   } 
