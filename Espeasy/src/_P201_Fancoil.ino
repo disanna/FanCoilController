@@ -125,10 +125,7 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
 
     case PLUGIN_READ:
     {
-
-      //while(Settings.TaskDevicePluginConfig[event->TaskIndex][0]) {}  //attende che la linea I2C sia disponibile
-      //Settings.TaskDevicePluginConfig[event->TaskIndex][0] = true;   //imposta la variabile che indica che la linea I2C è impegnata
-      
+ 
       String log = F("Inizio Fancoil - READ");
       addLog(LOG_LEVEL_DEBUG, log);
 
@@ -157,9 +154,7 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
       log = F("Modalità= ");
       log += fancoilMode;
       addLog(LOG_LEVEL_DEBUG, log);
-    
-      //Settings.TaskDevicePluginConfig[event->TaskIndex][0] = false;   //imposta la variabile che indica che la linea I2C è disponibile
-    
+        
       log = F("Fine Fancoil READ");
       addLog(LOG_LEVEL_DEBUG, log);
 
@@ -169,8 +164,6 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
     case PLUGIN_WRITE: {
       uint8_t taskIndex = getTaskIndexByName(TASK_NAME);
       uint16_t timeout = Settings.TaskDevicePluginConfig[taskIndex][0];  //legge la variabile relativa al timeout impostato prima di chiudere la funzione WRITE
-      //while(Settings.TaskDevicePluginConfig[taskIndex][0]) {}  //attende che la linea I2C sia disponibile
-      //Settings.TaskDevicePluginConfig[taskIndex][0] = true;   //imposta la variabile che indica che la linea I2C è impegnata
       
       String log = F("Inizio Fancoil - WRITE");
       addLog(LOG_LEVEL_DEBUG, log);
@@ -233,7 +226,6 @@ boolean Plugin_201(byte function, struct EventStruct *event, String &string)
         success = false;
       } 
 
-      //Settings.TaskDevicePluginConfig[taskIndex][0] = false;   //imposta la variabile che indica che la linea I2C è disponibile
       
       log = F("Fine Fancoil - WRITE");
       addLog(LOG_LEVEL_DEBUG, log);

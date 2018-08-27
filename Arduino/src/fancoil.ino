@@ -186,8 +186,8 @@ void decodeData() {
   for (int i = 0; i < 4; i++)
   {
     uint8_t prefix = (fancoilData[i] >> 8) & 0b1111;
-    uint8_t val = (fancoilData[i] >> 1) & 0b11111111;
-
+    uint8_t val = (fancoilData[i] >> 1) & 0b01111111;
+    
     switch (prefix)
     {
     case 1:
@@ -196,7 +196,7 @@ void decodeData() {
       Serial.println(val,BIN);
       flagTempMax = val & 0b00100000;
       
-      if (val & 0b00001000)
+      if (val & 0b1000)
         fancoilMode = MODE_AUTO;
       else if (val & 0b0100)
         fancoilMode = MODE_MIN;
@@ -431,23 +431,26 @@ void setMode(uint16_t mode) {
       }
       
       //imposta modalità
-      uint16_t counter = 50; 
+      uint16_t counter = 20; 
 
       while ((fancoilMode != mode) && (counter > 0)) {
-
+        digitalWrite(7, HIGH);
         digitalWrite(7, LOW);
         while (!(SPSR & (1 << SPIF))) {}
         while (!(readPrefix() & 0b01000000)) {}
+        //delayMicroseconds(5);
         digitalWrite(6, LOW);
-        delayMicroseconds(5500);    
+        delayMicroseconds(3990);    
         digitalWrite(6, HIGH);
-	      readFancoilData();
-        uint8_t i = 5;
-	      while((i>0) && (fancoilMode != mode)) {
+
+        uint8_t i = 4;
+	      while((i > 0) && (fancoilMode != mode)) {
+           delay(150);
            readFancoilData();
            i--;
 	      }  
-
+        Serial.print("counter:");
+        Serial.println(counter);
         counter--;
       }
     }
