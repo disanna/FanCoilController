@@ -41,6 +41,7 @@ uint8_t resetFlag;
 uint8_t receiveCmd;
 uint16_t receivedParam;
 
+unsigned long time1, time2, time3;
 
 void longWDT(void)
 {
@@ -76,12 +77,10 @@ void setup()
   // bring in SPI slave mode
   SPCR |= _BV(SPE);
   SPCR |= 0b00001100;
-  // enable interrupts
-  //SPCR |= _BV(SPIE);
 
   Serial.begin(115200);
   Serial.println("Setup");
-  Wire.begin(WIRE_ADDRESS);     // join i2c bus with address #8
+  Wire.begin(WIRE_ADDRESS);     // join i2c bus with address
   Wire.onRequest(requestEvent); // register event
   Wire.onReceive(receiveEvent); // receive event
 }
@@ -94,7 +93,6 @@ void loop()
   Serial.print("Fancoil mode:");
   Serial.println(fancoilMode);
   Serial.println("");
-  
   
   //Timer1.resume();
   //Timer1.attachInterrupt(longWDT); //code to execute
@@ -134,8 +132,10 @@ void loop()
 }
 
 
-// function that executes whenever data is requested by master
-// this function is registered as an event, see setup()
+// funzione chiamata all'arrivo di un evento request sulla linea I2C
+// non è possibile chiamare direttamente le funzioni setTemp e setTemp perchè
+// a causa della durata necessaria la linea I2C và in timeout (bug della libreria Wire ??)
+
 void requestEvent()
 {
   switch(receiveCmd) {
@@ -171,7 +171,9 @@ void requestEvent()
   }
 }
 
+// funzione chiamata all'arrivo di un evento receive sulla linea I2C
 void receiveEvent(int numBytes) {
+  
   if(Wire.available()) {
     receiveCmd = Wire.read();
   }
@@ -181,6 +183,7 @@ void receiveEvent(int numBytes) {
 }
 
 void decodeData() {
+  //estrapola i valori di temperatura e modalità dai byte letti dal controllore del ventilconvettore
   uint8_t flagTempMax, val1, val2 = 0;
   uint16_t valTot = 0;
   for (int i = 0; i < 4; i++)
@@ -192,8 +195,7 @@ void decodeData() {
     {
     case 1:
     {
-      Serial.print("val:");
-      Serial.println(val,BIN);
+
       flagTempMax = val & 0b00100000;
       
       if (val & 0b1000)
@@ -369,10 +371,13 @@ void setTemp(uint16_t t) {
   //mi assicuro che il valore di temp sia un multiplo di 5;
   uint8_t x = t / 5;
   uint16_t temp = x * 5;
-   
+
+  
   if((fancoilTemp != temp) && (temp <= MAX_TEMP) && (temp >= MIN_TEMP)) {
-    uint16_t counter = 500;
+    
+    uint16_t counter = 50;
     while ((fancoilTemp < temp) && (counter > 0)) {
+      // simulo pressione tasto più 
       digitalWrite(7, LOW);
       while (!(SPSR & (1 << SPIF))) {}
       while (!(readPrefix() & 0b00001000)) {}
@@ -383,6 +388,7 @@ void setTemp(uint16_t t) {
       counter--;
     }
     while ((fancoilTemp > temp) && (counter > 0)) {
+      // simulo pressione tasto meno
       digitalWrite(7, LOW);
       while (!(SPSR & (1 << SPIF))) {}
       while (!(readPrefix() & 0b00010000)) {}
@@ -400,9 +406,10 @@ void setMode(uint16_t mode) {
   if((fancoilMode != mode) && (mode >= MIN_MODE) && (mode <= MAX_MODE)) {
 
     if(mode == POWER_OFF) {
-      uint16_t counter = 10; 
+      //loop per simulare pressione prolungata tasto off
+      uint16_t counter = 20; 
       while ((fancoilMode != mode) && (counter > 0)) {
-        for(uint16_t i = 0; i < 50; i++) {
+        for(uint16_t i = 0; i < 50; i++) {  
           digitalWrite(7, LOW);
           while (!(SPSR & (1 << SPIF))) {}
           while (!(readPrefix() & 0b01000000)) {}
@@ -416,41 +423,41 @@ void setMode(uint16_t mode) {
 
     } else {  
       //accende il fancoil se spento
+      //simula pressione tasto off per per 1 sec
       if(fancoilMode == POWER_OFF) {   
-        uint16_t counter = 50; 
+        uint16_t counter = 20; 
         while ((fancoilMode == POWER_OFF) && (counter > 0)) {
           digitalWrite(7, LOW);
           while (!(SPSR & (1 << SPIF))) {}
           while (!(readPrefix() & 0b01000000)) {}
           digitalWrite(6, LOW);
-          delay(1000);  //preme per 5 sec
+          delay(1000);  
           digitalWrite(6, HIGH);
           readFancoilData();
           counter--;  
         }
       }
       
-      //imposta modalità
+      //simula pressione tasto off per cambiare modalità
       uint16_t counter = 20; 
-
       while ((fancoilMode != mode) && (counter > 0)) {
-        digitalWrite(7, HIGH);
-        digitalWrite(7, LOW);
-        while (!(SPSR & (1 << SPIF))) {}
-        while (!(readPrefix() & 0b01000000)) {}
-        //delayMicroseconds(5);
-        digitalWrite(6, LOW);
-        delayMicroseconds(3990);    
-        digitalWrite(6, HIGH);
-
-        uint8_t i = 4;
+	      for(uint8_t i = 0; i<10; i++) {
+          digitalWrite(7, HIGH);
+          digitalWrite(7, LOW);
+          while (!(SPSR & (1 << SPIF))) {}
+          while (!(readPrefix() & 0b01000000)) {}
+          //delayMicroseconds(35);
+        
+	        digitalWrite(6, LOW);
+          delayMicroseconds(4500);    
+          digitalWrite(6, HIGH);
+	      }
+	       
+	      uint8_t i = 3;
 	      while((i > 0) && (fancoilMode != mode)) {
-           delay(150);
-           readFancoilData();
-           i--;
+          readFancoilData();
+          i--;
 	      }  
-        Serial.print("counter:");
-        Serial.println(counter);
         counter--;
       }
     }
@@ -458,12 +465,17 @@ void setMode(uint16_t mode) {
 }
 
 void readSPI() {
-  digitalWrite(7, HIGH);
-  digitalWrite(7, LOW);
-  while (!(SPSR & (1 << SPIF)))
+  // legge 7 byte dall'interfaccia SPI per acquisire tutti i dati relativi 
+  // a un ciclo completo (ovvero 4 stringhe da 13 bit) 
+  
+  digitalWrite(7, HIGH); 
+  digitalWrite(7, LOW);  // abilita linea SPI arduino
+  
+  //lettura a vuoto per sincronizzare con dati in arrivo dal controllore del ventilconvettore
+  while (!(SPSR & (1 << SPIF))) //attende flag dati pronti sulla lina SPI
   {
   }
-  digitalWrite(7, HIGH);
+  digitalWrite(7, HIGH); 
   SPDR = 0;
   delayMicroseconds(120);
   digitalWrite(7, LOW);
@@ -499,7 +511,8 @@ void readSPI() {
 }
 
 void reworkData(uint8_t *data, uint16_t *result) {
-  
+  // ricostruisce le 4 words (ognuna contiene solo 13 bit utili) a partire dai byte letti dall'interfaccia SPI
+
   //    0.0000.0000.0000
   //  data[0]  0000.0000
   //  data[1]  0000.0111
@@ -508,21 +521,7 @@ void reworkData(uint8_t *data, uint16_t *result) {
   //  data[4]  2222.2223
   //  data[5]  3333.3333
   //  data[6]  3333.4444
-  /*
-  Serial.println("data:");
-  for(int i=0;i<7;i++) {
-    Serial.print(data[i],DEC);
-    Serial.print("-");
-    for(int k=0;k<8;k++) {
-      if((data[i] << k) & 0b10000000)
-        Serial.print("1");
-      else
-        Serial.print("0");
-    }
-    Serial.print(".");
-  }
-  Serial.println("");
-  */
+  
   uint16_t r = 0;
   uint16_t d = 0;
   d = data[0] << 5;
@@ -559,19 +558,6 @@ void reworkData(uint8_t *data, uint16_t *result) {
   r = r | d;
   result[3] = r;
 
-  /*
-  Serial.println("result:");
-  for(int i=0;i<4;i++) {
-    for(int k=0;k<16;k++){
-      if((result[i]<< k) & 0b1000000000000000)
-        Serial.print("1");
-      else
-        Serial.print("0");
-    }
-    Serial.print(".");
-  }
-  Serial.println("");
-  */
 }
 
 
@@ -587,6 +573,7 @@ byte readPrefix() {
     delayMicroseconds(120);
     digitalWrite(7, LOW);
     while (!(SPSR & (1 << SPIF))) {}
+    //time1 = micros();
     return SPDR;
 }
 
