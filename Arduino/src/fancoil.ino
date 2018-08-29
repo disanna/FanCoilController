@@ -453,8 +453,9 @@ void setMode(uint16_t mode) {
           digitalWrite(6, HIGH);
 	      }
 	       
-	      uint8_t i = 3;
+	      uint8_t i = 10;
 	      while((i > 0) && (fancoilMode != mode)) {
+          delay(100);
           readFancoilData();
           i--;
 	      }  
